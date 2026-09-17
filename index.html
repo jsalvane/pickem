@@ -1,0 +1,731 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>Football Pick'em</title>
+<style>
+  :root {
+    --red: #cc0000; --bar: #1a1a1a; --bar2: #2b2b2b; --bg: #edeef0; --card: #fff; --ink: #1c1c1c;
+    --muted: #6c6d6f; --line: #dcdddf; --zebra: #f7f7f7; --link: #0a5eb5;
+    --win: #e3f4e6; --win-ink: #0f6b2b; --loss: #fbe3e3; --loss-ink: #a80d0d;
+    --live: #fff3cf; --live-ink: #7a5300; --pend: #f0f1f3; --pend-ink: #8a8c90;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--ink); font: 15px/1.35 "Helvetica Neue", Helvetica, Arial, sans-serif; padding: 0 0 40px; }
+  .topbar { background: var(--bar); border-top: 4px solid var(--red); color: #fff; }
+  .topbar .in { max-width: 1120px; margin: 0 auto; padding: 0 20px; display: flex; align-items: center; gap: 22px; height: 56px; }
+  .brand { font-size: 24px; font-weight: 900; letter-spacing: -.02em; text-transform: uppercase; font-style: italic; white-space: nowrap; }
+  .brand span { color: var(--red); }
+  .tabs { display: flex; gap: 2px; margin-left: auto; overflow-x: auto; }
+  .tabs button { font: inherit; font-size: 13px; font-weight: 700; text-transform: uppercase; color: #cfcfcf; background: none; border: 0; border-bottom: 3px solid transparent; padding: 18px 12px 15px; cursor: pointer; white-space: nowrap; }
+  .tabs button:hover { color: #fff; }
+  .tabs button.on { color: #fff; border-bottom-color: var(--red); }
+  .subbar { background: var(--bar2); color: #cfcfcf; font-size: 12px; }
+  .subbar .in { max-width: 1120px; margin: 0 auto; padding: 7px 20px; display: flex; gap: 14px; align-items: center; }
+  .subbar a { color: #fff; cursor: pointer; text-decoration: underline; }
+  .subbar .err { color: #ffb4b4; }
+  .dot { width: 8px; height: 8px; border-radius: 50%; background: #3ec26b; display: inline-block; }
+  .dot.off { background: #999; }
+
+  .wrap { max-width: 1120px; margin: 0 auto; padding: 0 20px; }
+
+  /* scoreboard strip */
+  .strip { display: flex; gap: 8px; overflow-x: auto; padding: 14px 0 6px; scrollbar-width: thin; }
+  .g { flex: 0 0 auto; background: var(--card); border: 1px solid var(--line); border-radius: 4px; padding: 8px 10px; min-width: 132px; font-size: 13px; }
+  .g .st { font-size: 11px; font-weight: 700; text-transform: uppercase; color: var(--muted); margin-bottom: 5px; display: flex; justify-content: space-between; gap: 8px; }
+  .g .st.live { color: var(--red); }
+  .g .st .ln { font-weight: 400; text-transform: none; }
+  .g .t { display: flex; align-items: center; gap: 7px; padding: 2px 0; color: var(--muted); }
+  .g .t.w { color: var(--ink); font-weight: 700; }
+  .g .t img { width: 20px; height: 20px; }
+  .g .t .ab { flex: 1; }
+  .g .t .sc { font-variant-numeric: tabular-nums; min-width: 22px; text-align: right; }
+  .g .t .cv { font-size: 10px; color: var(--win-ink); font-weight: 700; }
+
+  .sec { background: var(--card); border: 1px solid var(--line); border-radius: 4px; margin-top: 16px; }
+  .sec h2 { font-size: 16px; font-weight: 900; text-transform: uppercase; margin: 0; padding: 12px 16px; border-bottom: 1px solid var(--line); letter-spacing: .01em; }
+  .sec h2 small { font-weight: 400; text-transform: none; color: var(--muted); font-size: 13px; margin-left: 10px; }
+  .scroll { overflow-x: auto; }
+  table { border-collapse: collapse; width: 100%; }
+  th, td { padding: 9px 14px; text-align: left; white-space: nowrap; border-bottom: 1px solid var(--line); }
+  tr:last-child td { border-bottom: 0; }
+  tbody tr:nth-child(even) td { background: var(--zebra); }
+  th { font-size: 11px; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); font-weight: 700; background: #fafafa; }
+  td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
+  td.big { font-size: 18px; font-weight: 800; }
+  .rank { color: var(--muted); width: 30px; font-weight: 700; }
+  .name { font-weight: 700; }
+  .lead td:first-child { box-shadow: inset 3px 0 0 var(--red); }
+
+  .chips { display: flex; flex-wrap: wrap; gap: 5px; }
+  .chip { display: inline-flex; align-items: center; gap: 5px; border-radius: 3px; padding: 4px 8px 4px 6px; font-size: 13px; font-weight: 700; min-width: 76px; }
+  .chip img { width: 18px; height: 18px; }
+  .chip .m { margin-left: auto; font-size: 12px; }
+  .win { background: var(--win); color: var(--win-ink); }
+  .loss { background: var(--loss); color: var(--loss-ink); }
+  .live { background: var(--live); color: var(--live-ink); }
+  .pend { background: var(--pend); color: var(--pend-ink); }
+
+  .tabs button.me { margin-left: 10px; }
+  .prize { display: flex; align-items: center; gap: 18px; background: var(--card); border: 1px solid var(--line); border-left: 6px solid var(--muted); border-radius: 4px; padding: 12px 18px; margin-top: 12px; }
+  .prize.won { border-left-color: #1a8a3c; } .prize.tie { border-left-color: var(--red); } .prize.open { border-left-color: #e0a100; }
+  .pw { font-size: 28px; font-weight: 900; font-variant-numeric: tabular-nums; text-align: center; line-height: 1; }
+  .pw small { display: block; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); margin-top: 4px; white-space: nowrap; }
+  .pb { font-size: 15px; }
+  .bx { display: inline-block; background: var(--red); color: #fff; font-size: 11px; font-weight: 700; text-transform: uppercase; border-radius: 3px; padding: 2px 7px; margin-left: 6px; }
+  td.wrap-ok { white-space: normal; }
+  tr.mine td { background: #fff8e6 !important; }
+  .okc { color: var(--win-ink); font-weight: 700; font-size: 13px; white-space: nowrap; }
+  .prize.slate { border-left-color: #0a5eb5; }
+  .hero { display: flex; flex-wrap: wrap; align-items: center; gap: 18px 36px; background: var(--bar); color: #fff; border-radius: 4px; padding: 22px 26px; margin-top: 16px; border-left: 6px solid var(--red); }
+  .hn { font-size: 30px; font-weight: 900; font-style: italic; text-transform: uppercase; letter-spacing: -.02em; }
+  .hs { color: #bdbdbd; font-size: 13px; margin-top: 2px; }
+  .hstat { text-align: center; }
+  .hv { font-size: 30px; font-weight: 900; font-variant-numeric: tabular-nums; }
+  .hv .of { font-size: 15px; color: #bdbdbd; font-weight: 400; }
+  .hl { font-size: 11px; text-transform: uppercase; letter-spacing: .06em; color: #bdbdbd; }
+  .ins { margin: 0; padding: 12px 16px 12px 34px; font-size: 15px; line-height: 1.5; }
+  .ins li { margin: 4px 0; }
+  .tiles { display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: 1px; background: var(--line); }
+  .tile { background: var(--card); padding: 14px 16px; }
+  .tl { font-size: 11px; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); font-weight: 700; }
+  .tv { font-size: 24px; font-weight: 900; font-variant-numeric: tabular-nums; margin-top: 2px; }
+  .ts { font-size: 12px; color: var(--muted); }
+  .two { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  .two .sec { margin-top: 16px; }
+  .pad { padding: 14px 16px; }
+  td.good { color: var(--win-ink); font-weight: 700; } td.bad { color: var(--loss-ink); font-weight: 700; }
+  td img { width: 18px; height: 18px; vertical-align: -4px; }
+  @media (max-width: 760px) { .two { grid-template-columns: 1fr; } .two .sec { margin-top: 16px; } }
+  .warn { background: #fff8e1; border: 1px solid #f5d67a; border-radius: 4px; padding: 12px 16px; margin-top: 16px; font-size: 14px; }
+  .warn ul { margin: 6px 0 0; padding-left: 20px; }
+  .foot { color: var(--muted); font-size: 12px; margin-top: 14px; }
+  .muted { color: var(--muted); }
+  @media (max-width: 600px) { .wrap, .topbar .in, .subbar .in { padding-left: 12px; padding-right: 12px; } .brand { font-size: 20px; } th, td { padding: 8px 10px; } }
+</style>
+</head>
+<body>
+<div class="topbar"><div class="in">
+  <div class="brand">Pick'em <span id="season"></span></div>
+  <div class="tabs" id="tabs"></div>
+</div></div>
+<div class="subbar"><div class="in" id="status"><span class="dot off"></span> Loading scores…</div></div>
+
+<div class="wrap">
+  <div class="strip" id="strip"></div>
+  <div id="warnings"></div>
+  <div id="main"></div>
+  <div class="foot" id="built"></div>
+</div>
+
+<script>
+const DATA = {"season": 2026, "me": null, "rules": {"fee": 5, "prize": 30, "basePicks": 11}, "built": "Sep 17, 2026 02:03 PM", "teams": {"ARI": "Cardinals", "ATL": "Falcons", "BAL": "Ravens", "BUF": "Bills", "CAR": "Panthers", "CHI": "Bears", "CIN": "Bengals", "CLE": "Browns", "DAL": "Cowboys", "DEN": "Broncos", "DET": "Lions", "GB": "Packers", "HOU": "Texans", "IND": "Colts", "JAX": "Jaguars", "KC": "Chiefs", "LV": "Raiders", "LAC": "Chargers", "LAR": "Rams", "MIA": "Dolphins", "MIN": "Vikings", "NE": "Patriots", "NO": "Saints", "NYG": "Giants", "NYJ": "Jets", "PHI": "Eagles", "PIT": "Steelers", "SF": "49ers", "SEA": "Seahawks", "TB": "Buccaneers", "TEN": "Titans", "WSH": "Commanders"}, "weeks": [{"week": 1, "file": "Week 1 2026-Final Picks.xlsx", "games": [{"fav": "SEA", "dog": "NE", "spread": 3.5, "home": "SEA", "markCover": null}, {"fav": "LAR", "dog": "SF", "spread": 3.5, "home": "LAR", "markCover": null}, {"fav": "CHI", "dog": "CAR", "spread": 3.0, "home": "CAR", "markCover": null}, {"fav": "BAL", "dog": "IND", "spread": 3.5, "home": "IND", "markCover": null}, {"fav": "PIT", "dog": "ATL", "spread": 3.5, "home": "PIT", "markCover": null}, {"fav": "JAX", "dog": "CLE", "spread": 8.0, "home": "JAX", "markCover": null}, {"fav": "CIN", "dog": "TB", "spread": 3.5, "home": "CIN", "markCover": null}, {"fav": "TEN", "dog": "NYJ", "spread": 1.5, "home": "TEN", "markCover": null}, {"fav": "DET", "dog": "NO", "spread": 7.0, "home": "DET", "markCover": null}, {"fav": "BUF", "dog": "HOU", "spread": 1.5, "home": "HOU", "markCover": null}, {"fav": "LAC", "dog": "ARI", "spread": 10.0, "home": "LAC", "markCover": null}, {"fav": "MIN", "dog": "GB", "spread": 1.5, "home": "MIN", "markCover": null}, {"fav": "LV", "dog": "MIA", "spread": 3.5, "home": "LV", "markCover": null}, {"fav": "PHI", "dog": "WSH", "spread": 5.5, "home": "PHI", "markCover": null}, {"fav": "DAL", "dog": "NYG", "spread": 3.0, "home": "NYG", "markCover": null}, {"fav": "KC", "dog": "DEN", "spread": 2.5, "home": "KC", "markCover": null}], "players": [{"name": "Brian", "picks": [{"raw": "Sea", "team": "SEA", "mark": null}, {"raw": "LAR", "team": "LAR", "mark": null}, {"raw": "Chi", "team": "CHI", "mark": null}, {"raw": "Pitts", "team": "PIT", "mark": null}, {"raw": "Jax", "team": "JAX", "mark": null}, {"raw": "Cinn", "team": "CIN", "mark": null}, {"raw": "DET", "team": "DET", "mark": null}, {"raw": "Hous", "team": "HOU", "mark": null}, {"raw": "LAC", "team": "LAC", "mark": null}, {"raw": "LVR", "team": "LV", "mark": null}, {"raw": "Den", "team": "DEN", "mark": null}]}, {"name": "Bob H", "picks": [{"raw": "Chi", "team": "CHI", "mark": null}, {"raw": "Indy", "team": "IND", "mark": null}, {"raw": "Atl", "team": "ATL", "mark": null}, {"raw": "Jax", "team": "JAX", "mark": null}, {"raw": "Cinn", "team": "CIN", "mark": null}, {"raw": "Tenn", "team": "TEN", "mark": null}, {"raw": "Hous", "team": "HOU", "mark": null}, {"raw": "LAC", "team": "LAC", "mark": null}, {"raw": "LVR", "team": "LV", "mark": null}, {"raw": "Den", "team": "DEN", "mark": null}, {"raw": "NYG", "team": "NYG", "mark": null}]}, {"name": "Tommy B", "picks": [{"raw": "LAR", "team": "LAR", "mark": null}, {"raw": "Chicago", "team": "CHI", "mark": null}, {"raw": "Balt", "team": "BAL", "mark": null}, {"raw": "Pitts", "team": "PIT", "mark": null}, {"raw": "Cinn", "team": "CIN", "mark": null}, {"raw": "Tenn", "team": "TEN", "mark": null}, {"raw": "NO", "team": "NO", "mark": null}, {"raw": "Buffalo", "team": "BUF", "mark": null}, {"raw": "Minn", "team": "MIN", "mark": null}, {"raw": "LVR", "team": "LV", "mark": null}, {"raw": "Phil", "team": "PHI", "mark": null}]}, {"name": "Dave O", "picks": [{"raw": "At Sea", "team": "SEA", "mark": null}, {"raw": "SF", "team": "SF", "mark": null}, {"raw": "At Car", "team": "CAR", "mark": null}, {"raw": "At Indy", "team": "IND", "mark": null}, {"raw": "At Pitts", "team": "PIT", "mark": null}, {"raw": "At Cinn", "team": "CIN", "mark": null}, {"raw": "Buff", "team": "BUF", "mark": null}, {"raw": "Ariz", "team": "ARI", "mark": null}, {"raw": "Miami", "team": "MIA", "mark": null}, {"raw": "Wash", "team": "WSH", "mark": null}, {"raw": "At KC", "team": "KC", "mark": null}]}, {"name": "Pedro", "picks": [{"raw": "Den", "team": "DEN", "mark": null}, {"raw": "Dal", "team": "DAL", "mark": null}, {"raw": "Ariz", "team": "ARI", "mark": null}, {"raw": "Wash", "team": "WSH", "mark": null}, {"raw": "LAR", "team": "LAR", "mark": null}, {"raw": "Chi", "team": "CHI", "mark": null}, {"raw": "Pitts", "team": "PIT", "mark": null}, {"raw": "Buffalo", "team": "BUF", "mark": null}, {"raw": "Cleve", "team": "CLE", "mark": null}, {"raw": "Balt", "team": "BAL", "mark": null}, {"raw": "Minn", "team": "MIN", "mark": null}]}, {"name": "Angel R", "picks": [{"raw": "Buff", "team": "BUF", "mark": null}, {"raw": "Det", "team": "DET", "mark": null}, {"raw": "Chi", "team": "CHI", "mark": null}, {"raw": "LAR", "team": "LAR", "mark": null}, {"raw": "Phill", "team": "PHI", "mark": null}, {"raw": "LVR", "team": "LV", "mark": null}, {"raw": "Cleve", "team": "CLE", "mark": null}, {"raw": "NE", "team": "NE", "mark": null}, {"raw": "Tenn", "team": "TEN", "mark": null}, {"raw": "NYG", "team": "NYG", "mark": null}, {"raw": "DEN", "team": "DEN", "mark": null}]}, {"name": "Joe S jr", "picks": [{"raw": "Hous", "team": "HOU", "mark": null}, {"raw": "Wash", "team": "WSH", "mark": null}, {"raw": "KC", "team": "KC", "mark": null}, {"raw": "Cinn", "team": "CIN", "mark": null}, {"raw": "LAR", "team": "LAR", "mark": null}, {"raw": "Pitt", "team": "PIT", "mark": null}, {"raw": "Balt", "team": "BAL", "mark": null}, {"raw": "NYJ", "team": "NYJ", "mark": null}, {"raw": "Minn", "team": "MIN", "mark": null}, {"raw": "Sea", "team": "SEA", "mark": null}, {"raw": "LVR", "team": "LV", "mark": null}]}, {"name": "Joe S sr", "picks": [{"raw": "Pitts", "team": "PIT", "mark": null}, {"raw": "TB", "team": "TB", "mark": null}, {"raw": "NYJ", "team": "NYJ", "mark": null}, {"raw": "Hous", "team": "HOU", "mark": null}, {"raw": "Minn", "team": "MIN", "mark": null}, {"raw": "Phil", "team": "PHI", "mark": null}, {"raw": "LVR", "team": "LV", "mark": null}, {"raw": "Den", "team": "DEN", "mark": null}, {"raw": "Car", "team": "CAR", "mark": null}, {"raw": "Jax", "team": "JAX", "mark": null}, {"raw": "Ariz", "team": "ARI", "mark": null}]}, {"name": "Travis B", "picks": [{"raw": "NE", "team": "NE", "mark": null}, {"raw": "LAR", "team": "LAR", "mark": null}, {"raw": "Chi", "team": "CHI", "mark": null}, {"raw": "Balt", "team": "BAL", "mark": null}, {"raw": "Atl", "team": "ATL", "mark": null}, {"raw": "Cleve", "team": "CLE", "mark": null}, {"raw": "Cinn", "team": "CIN", "mark": null}, {"raw": "NYJ", "team": "NYJ", "mark": null}, {"raw": "Ariz", "team": "ARI", "mark": null}, {"raw": "Minn", "team": "MIN", "mark": null}, {"raw": "Dal", "team": "DAL", "mark": null}]}, {"name": "Rob C", "picks": [{"raw": "SEA", "team": "SEA", "mark": null}, {"raw": "RAMS", "team": "LAR", "mark": null}, {"raw": "BEARS", "team": "CHI", "mark": null}, {"raw": "COLTS", "team": "IND", "mark": null}, {"raw": "PITT", "team": "PIT", "mark": null}, {"raw": "BENGALS", "team": "CIN", "mark": null}, {"raw": "ARIZ", "team": "ARI", "mark": null}, {"raw": "VIKES", "team": "MIN", "mark": null}, {"raw": "EAGLES", "team": "PHI", "mark": null}, {"raw": "NYG", "team": "NYG", "mark": null}, {"raw": "DEN", "team": "DEN", "mark": null}]}], "problems": [], "official": {}, "files": ["Week 1 2026-Final Picks.xlsx"], "slate": false, "snapshot": [{"home": "SEA", "away": "NE", "homeScore": 13, "awayScore": 10, "state": "post", "detail": "Final", "date": "2026-09-10T00:20Z"}, {"home": "LAR", "away": "SF", "homeScore": 7, "awayScore": 27, "state": "post", "detail": "Final", "date": "2026-09-11T00:35Z"}, {"home": "CIN", "away": "TB", "homeScore": 33, "awayScore": 27, "state": "post", "detail": "Final", "date": "2026-09-13T17:00Z"}, {"home": "DET", "away": "NO", "homeScore": 31, "awayScore": 30, "state": "post", "detail": "Final/OT", "date": "2026-09-13T17:00Z"}, {"home": "TEN", "away": "NYJ", "homeScore": 10, "awayScore": 23, "state": "post", "detail": "Final", "date": "2026-09-13T17:00Z"}, {"home": "IND", "away": "BAL", "homeScore": 23, "awayScore": 41, "state": "post", "detail": "Final", "date": "2026-09-13T17:00Z"}, {"home": "PIT", "away": "ATL", "homeScore": 20, "awayScore": 13, "state": "post", "detail": "Final", "date": "2026-09-13T17:00Z"}, {"home": "CAR", "away": "CHI", "homeScore": 37, "awayScore": 59, "state": "post", "detail": "Final", "date": "2026-09-13T17:00Z"}, {"home": "JAX", "away": "CLE", "homeScore": 34, "awayScore": 10, "state": "post", "detail": "Final", "date": "2026-09-13T17:00Z"}, {"home": "HOU", "away": "BUF", "homeScore": 31, "awayScore": 36, "state": "post", "detail": "Final", "date": "2026-09-13T17:00Z"}, {"home": "LV", "away": "MIA", "homeScore": 27, "awayScore": 13, "state": "post", "detail": "Final", "date": "2026-09-13T20:25Z"}, {"home": "MIN", "away": "GB", "homeScore": 39, "awayScore": 22, "state": "post", "detail": "Final", "date": "2026-09-13T20:25Z"}, {"home": "PHI", "away": "WSH", "homeScore": 24, "awayScore": 22, "state": "post", "detail": "Final", "date": "2026-09-13T20:25Z"}, {"home": "LAC", "away": "ARI", "homeScore": 14, "awayScore": 26, "state": "post", "detail": "Final", "date": "2026-09-13T20:25Z"}, {"home": "NYG", "away": "DAL", "homeScore": 28, "awayScore": 20, "state": "post", "detail": "Final", "date": "2026-09-14T00:20Z"}, {"home": "KC", "away": "DEN", "homeScore": 31, "awayScore": 10, "state": "post", "detail": "Final", "date": "2026-09-15T00:15Z"}], "audit": {"source": "Week 2 2026-Final Picks.xlsx", "official": {"Brian": 5, "Bob H": 5, "Tommy B": 8, "Dave O": 7, "Pedro": 7, "Angel R": 5, "Joe S jr": 8, "Joe S sr": 6, "Travis B": 7, "Rob C": 6}, "marks": {"Brian": {"SEA": "L", "LAR": "L", "CHI": "W", "PIT": "W", "JAX": "W", "CIN": "W", "DET": "L", "HOU": "L", "LAC": "L", "LV": "W", "DEN": "L"}, "Bob H": {"CHI": "W", "IND": "L", "ATL": "L", "JAX": "W", "CIN": "W", "TEN": "L", "HOU": "L", "LAC": "L", "LV": "W", "DEN": "L", "NYG": "W"}, "Tommy B": {"LAR": "L", "CHI": "W", "BAL": "W", "PIT": "W", "CIN": "W", "TEN": "L", "NO": "W", "BUF": "W", "MIN": "W", "LV": "W", "PHI": "L"}, "Dave O": {"SEA": "L", "SF": "W", "CAR": "L", "IND": "L", "PIT": "W", "CIN": "W", "BUF": "W", "ARI": "W", "MIA": "L", "WSH": "W", "KC": "W"}, "Pedro": {"DEN": "L", "DAL": "L", "ARI": "W", "WSH": "W", "LAR": "L", "CHI": "W", "PIT": "W", "BUF": "W", "CLE": "L", "BAL": "W", "MIN": "W"}, "Angel R": {"BUF": "W", "DET": "L", "CHI": "W", "LAR": "L", "PHI": "L", "LV": "W", "CLE": "L", "NE": "W", "TEN": "L", "NYG": "W", "DEN": "L"}, "Joe S jr": {"HOU": "L", "WSH": "W", "KC": "W", "CIN": "W", "LAR": "L", "PIT": "W", "BAL": "W", "NYJ": "W", "MIN": "W", "SEA": "L", "LV": "W"}, "Joe S sr": {"PIT": "W", "TB": "L", "NYJ": "W", "HOU": "L", "MIN": "W", "PHI": "L", "LV": "W", "DEN": "L", "CAR": "L", "JAX": "W", "ARI": "W"}, "Travis B": {"NE": "W", "LAR": "L", "CHI": "W", "BAL": "W", "ATL": "L", "CLE": "L", "CIN": "W", "NYJ": "W", "ARI": "W", "MIN": "W", "DAL": "L"}, "Rob C": {"SEA": "L", "LAR": "L", "CHI": "W", "IND": "L", "PIT": "W", "CIN": "W", "ARI": "W", "MIN": "W", "PHI": "L", "NYG": "W", "DEN": "L"}}, "covers": [{"fav": "SEA", "dog": "NE", "cover": "dog"}, {"fav": "LAR", "dog": "SF", "cover": "dog"}, {"fav": "CHI", "dog": "CAR", "cover": "fav"}, {"fav": "BAL", "dog": "IND", "cover": "fav"}, {"fav": "PIT", "dog": "ATL", "cover": "fav"}, {"fav": "JAX", "dog": "CLE", "cover": "fav"}, {"fav": "CIN", "dog": "TB", "cover": "fav"}, {"fav": "TEN", "dog": "NYJ", "cover": "dog"}, {"fav": "DET", "dog": "NO", "cover": "dog"}, {"fav": "BUF", "dog": "HOU", "cover": "fav"}, {"fav": "LAC", "dog": "ARI", "cover": "dog"}, {"fav": "MIN", "dog": "GB", "cover": "fav"}, {"fav": "LV", "dog": "MIA", "cover": "fav"}, {"fav": "PHI", "dog": "WSH", "cover": "dog"}, {"fav": "DAL", "dog": "NYG", "cover": "dog"}, {"fav": "KC", "dog": "DEN", "cover": "fav"}], "totals": {"Brian": 5, "Bob H": 5, "Tommy B": 8, "Dave O": 7, "Pedro": 7, "Angel R": 5, "Joe S jr": 8, "Joe S sr": 6, "Travis B": 7, "Rob C": 6}, "changed": []}}, {"week": 2, "file": "Week 2 2026-Final Picks.xlsx", "games": [{"fav": "BUF", "dog": "DET", "spread": 5.5, "home": "BUF", "markCover": null}, {"fav": "NE", "dog": "PIT", "spread": 4.5, "home": "NE", "markCover": null}, {"fav": "PHI", "dog": "TEN", "spread": 7.0, "home": "TEN", "markCover": null}, {"fav": "CHI", "dog": "MIN", "spread": 5.5, "home": "CHI", "markCover": null}, {"fav": "CAR", "dog": "ATL", "spread": 2.5, "home": "ATL", "markCover": null}, {"fav": "GB", "dog": "NYJ", "spread": 3.5, "home": "NYJ", "markCover": null}, {"fav": "BAL", "dog": "NO", "spread": 8.0, "home": "BAL", "markCover": null}, {"fav": "HOU", "dog": "CIN", "spread": 3.0, "home": "HOU", "markCover": null}, {"fav": "TB", "dog": "CLE", "spread": 8.0, "home": "TB", "markCover": null}, {"fav": "DEN", "dog": "JAX", "spread": 2.5, "home": "DEN", "markCover": null}, {"fav": "LAC", "dog": "LV", "spread": 6.5, "home": "LAC", "markCover": null}, {"fav": "SEA", "dog": "ARI", "spread": 4.0, "home": "ARI", "markCover": null}, {"fav": "SF", "dog": "MIA", "spread": 13.0, "home": "SF", "markCover": null}, {"fav": "DAL", "dog": "WSH", "spread": 4.0, "home": "DAL", "markCover": null}, {"fav": "KC", "dog": "IND", "spread": 6.5, "home": "KC", "markCover": null}, {"fav": "LAR", "dog": "NYG", "spread": 7.5, "home": "LAR", "markCover": null}], "players": [{"name": "Brian", "picks": [{"raw": "Cinn", "team": "CIN", "mark": null}, {"raw": "Bills", "team": "BUF", "mark": null}, {"raw": "JAX", "team": "JAX", "mark": null}, {"raw": "Wash", "team": "WSH", "mark": null}, {"raw": "KC", "team": "KC", "mark": null}, {"raw": "LVR", "team": "LV", "mark": null}, {"raw": "Chi", "team": "CHI", "mark": null}, {"raw": "Pitts", "team": "PIT", "mark": null}, {"raw": "Balt", "team": "BAL", "mark": null}, {"raw": "Phil", "team": "PHI", "mark": null}, {"raw": "Sea", "team": "SEA", "mark": null}, {"raw": "LAR", "team": "LAR", "mark": null}]}, {"name": "Bob H", "picks": [{"raw": "Det", "team": "DET", "mark": null}, {"raw": "NE", "team": "NE", "mark": null}, {"raw": "Chic", "team": "CHI", "mark": null}, {"raw": "NYJ", "team": "NYJ", "mark": null}, {"raw": "Balt", "team": "BAL", "mark": null}, {"raw": "Cinn", "team": "CIN", "mark": null}, {"raw": "Cleve", "team": "CLE", "mark": null}, {"raw": "LAC", "team": "LAC", "mark": null}, {"raw": "Sea", "team": "SEA", "mark": null}, {"raw": "SF", "team": "SF", "mark": null}, {"raw": "KC", "team": "KC", "mark": null}, {"raw": "NYG", "team": "NYG", "mark": null}]}, {"name": "Tommy B", "picks": [{"raw": "Buff", "team": "BUF", "mark": null}, {"raw": "NE", "team": "NE", "mark": null}, {"raw": "Philly", "team": "PHI", "mark": null}, {"raw": "Carolina", "team": "CAR", "mark": null}, {"raw": "NYJ", "team": "NYJ", "mark": null}, {"raw": "NO", "team": "NO", "mark": null}, {"raw": "Houston", "team": "HOU", "mark": null}, {"raw": "TB", "team": "TB", "mark": null}, {"raw": "Jax", "team": "JAX", "mark": null}, {"raw": "LAC", "team": "LAC", "mark": null}, {"raw": "San Fran", "team": "SF", "mark": null}, {"raw": "Dallas", "team": "DAL", "mark": null}]}, {"name": "Dave O", "picks": [{"raw": "Det", "team": "DET", "mark": null}, {"raw": "Pitts", "team": "PIT", "mark": null}, {"raw": "At Tenn", "team": "TEN", "mark": null}, {"raw": "Minn", "team": "MIN", "mark": null}, {"raw": "NO", "team": "NO", "mark": null}, {"raw": "Jax", "team": "JAX", "mark": null}, {"raw": "LVR", "team": "LV", "mark": null}, {"raw": "At Ariz", "team": "ARI", "mark": null}, {"raw": "At SF", "team": "SF", "mark": null}, {"raw": "Wash", "team": "WSH", "mark": null}, {"raw": "Indy", "team": "IND", "mark": null}, {"raw": "NYG", "team": "NYG", "mark": null}]}, {"name": "Pedro", "picks": [{"raw": "Minn", "team": "MIN", "mark": null}, {"raw": "NYJ", "team": "NYJ", "mark": null}, {"raw": "Jax", "team": "JAX", "mark": null}, {"raw": "Phil", "team": "PHI", "mark": null}, {"raw": "Det", "team": "DET", "mark": null}, {"raw": "Atl", "team": "ATL", "mark": null}, {"raw": "Houston", "team": "HOU", "mark": null}, {"raw": "NYG", "team": "NYG", "mark": null}, {"raw": "TB", "team": "TB", "mark": null}, {"raw": "KC", "team": "KC", "mark": null}, {"raw": "NE", "team": "NE", "mark": null}, {"raw": "Sea", "team": "SEA", "mark": null}]}, {"name": "Angel R", "picks": [{"raw": "Chicago ", "team": "CHI", "mark": null}, {"raw": "Indy ", "team": "IND", "mark": null}, {"raw": "Philly ", "team": "PHI", "mark": null}, {"raw": "DET", "team": "DET", "mark": null}, {"raw": "NE", "team": "NE", "mark": null}, {"raw": "Jax", "team": "JAX", "mark": null}, {"raw": "Houston", "team": "HOU", "mark": null}, {"raw": "NYJ", "team": "NYJ", "mark": null}, {"raw": "Cleve", "team": "CLE", "mark": null}, {"raw": "LVR", "team": "LV", "mark": null}, {"raw": "Mia", "team": "MIA", "mark": null}, {"raw": "NYG", "team": "NYG", "mark": null}]}, {"name": "Joe S jr", "picks": [{"raw": "NYG", "team": "NYG", "mark": null}, {"raw": "NE", "team": "NE", "mark": null}, {"raw": "Minn", "team": "MIN", "mark": null}, {"raw": "Jax", "team": "JAX", "mark": null}, {"raw": "KC", "team": "KC", "mark": null}, {"raw": "SF", "team": "SF", "mark": null}, {"raw": "TB", "team": "TB", "mark": null}, {"raw": "Balt", "team": "BAL", "mark": null}, {"raw": "Dal", "team": "DAL", "mark": null}, {"raw": "Ariz", "team": "ARI", "mark": null}, {"raw": "NYJ", "team": "NYJ", "mark": null}, {"raw": "LVR", "team": "LV", "mark": null}]}, {"name": "Joe S sr", "picks": [{"raw": "Det", "team": "DET", "mark": null}, {"raw": "Phil", "team": "PHI", "mark": null}, {"raw": "Minn", "team": "MIN", "mark": null}, {"raw": "Car", "team": "CAR", "mark": null}, {"raw": "NYJ", "team": "NYJ", "mark": null}, {"raw": "Balt", "team": "BAL", "mark": null}, {"raw": "TB", "team": "TB", "mark": null}, {"raw": "Den", "team": "DEN", "mark": null}, {"raw": "LVR", "team": "LV", "mark": null}, {"raw": "Ariz", "team": "ARI", "mark": null}, {"raw": "SF", "team": "SF", "mark": null}, {"raw": "Indy", "team": "IND", "mark": null}]}, {"name": "Travis B", "picks": [{"raw": "Det", "team": "DET", "mark": null}, {"raw": "NE", "team": "NE", "mark": null}, {"raw": "Phil", "team": "PHI", "mark": null}, {"raw": "Minn", "team": "MIN", "mark": null}, {"raw": "Atl", "team": "ATL", "mark": null}, {"raw": "GB", "team": "GB", "mark": null}, {"raw": "Balt", "team": "BAL", "mark": null}, {"raw": "Cinn", "team": "CIN", "mark": null}, {"raw": "Cleve", "team": "CLE", "mark": null}, {"raw": "LVR", "team": "LV", "mark": null}, {"raw": "Dal", "team": "DAL", "mark": null}, {"raw": "Sea", "team": "SEA", "mark": null}]}, {"name": "Rob C", "picks": [{"raw": "PATS", "team": "NE", "mark": null}, {"raw": "EAGLES", "team": "PHI", "mark": null}, {"raw": "FALCONS", "team": "ATL", "mark": null}, {"raw": "J-E-T-S", "team": "NYJ", "mark": null}, {"raw": "RAVENS", "team": "BAL", "mark": null}, {"raw": "TB", "team": "TB", "mark": null}, {"raw": "JAX", "team": "JAX", "mark": null}, {"raw": "RAIDERS", "team": "LV", "mark": null}, {"raw": "SEA", "team": "SEA", "mark": null}, {"raw": "49ers", "team": "SF", "mark": null}, {"raw": "KC", "team": "KC", "mark": null}, {"raw": "NYG", "team": "NYG", "mark": null}]}], "problems": [], "official": {}, "files": ["Week 2 2026-Final Picks.xlsx"], "slate": false, "snapshot": [{"home": "BUF", "away": "DET", "homeScore": 0, "awayScore": 0, "state": "pre", "detail": "9/17 - 8:15 PM EDT", "date": "2026-09-18T00:15Z"}, {"home": "ATL", "away": "CAR", "homeScore": 0, "awayScore": 0, "state": "pre", "detail": "9/20 - 1:00 PM EDT", "date": "2026-09-20T17:00Z"}, {"home": "CHI", "away": "MIN", "homeScore": 0, "awayScore": 0, "state": "pre", "detail": "9/20 - 1:00 PM EDT", "date": "2026-09-20T17:00Z"}, {"home": "TEN", "away": "PHI", "homeScore": 0, "awayScore": 0, "state": "pre", "detail": "9/20 - 1:00 PM EDT", "date": "2026-09-20T17:00Z"}, {"home": "NE", "away": "PIT", "homeScore": 0, "awayScore": 0, "state": "pre", "detail": "9/20 - 1:00 PM EDT", "date": "2026-09-20T17:00Z"}, {"home": "NYJ", "away": "GB", "homeScore": 0, "awayScore": 0, "state": "pre", "detail": "9/20 - 1:00 PM EDT", "date": "2026-09-20T17:00Z"}, {"home": "TB", "away": "CLE", "homeScore": 0, "awayScore": 0, "state": "pre", "detail": "9/20 - 1:00 PM EDT", "date": "2026-09-20T17:00Z"}, {"home": "BAL", "away": "NO", "homeScore": 0, "awayScore": 0, "state": "pre", "detail": "9/20 - 1:00 PM EDT", "date": "2026-09-20T17:00Z"}, {"home": "HOU", "away": "CIN", "homeScore": 0, "awayScore": 0, "state": "pre", "detail": "9/20 - 1:00 PM EDT", "date": "2026-09-20T17:00Z"}, {"home": "DEN", "away": "JAX", "homeScore": 0, "awayScore": 0, "state": "pre", "detail": "9/20 - 4:05 PM EDT", "date": "2026-09-20T20:05Z"}, {"home": "LAC", "away": "LV", "homeScore": 0, "awayScore": 0, "state": "pre", "detail": "9/20 - 4:05 PM EDT", "date": "2026-09-20T20:05Z"}, {"home": "DAL", "away": "WSH", "homeScore": 0, "awayScore": 0, "state": "pre", "detail": "9/20 - 4:25 PM EDT", "date": "2026-09-20T20:25Z"}, {"home": "ARI", "away": "SEA", "homeScore": 0, "awayScore": 0, "state": "pre", "detail": "9/20 - 4:25 PM EDT", "date": "2026-09-20T20:25Z"}, {"home": "SF", "away": "MIA", "homeScore": 0, "awayScore": 0, "state": "pre", "detail": "9/20 - 4:25 PM EDT", "date": "2026-09-20T20:25Z"}, {"home": "KC", "away": "IND", "homeScore": 0, "awayScore": 0, "state": "pre", "detail": "9/20 - 8:20 PM EDT", "date": "2026-09-21T00:20Z"}, {"home": "LAR", "away": "NYG", "homeScore": 0, "awayScore": 0, "state": "pre", "detail": "9/21 - 8:15 PM EDT", "date": "2026-09-22T00:15Z"}], "audit": null}], "pool": true};
+const TEAMS = DATA.teams;
+const logo = t => `<img src="https://a.espncdn.com/i/teamlogos/nfl/500/${t.toLowerCase()}.png" alt="">`;
+const ME = DATA.me;
+const RULES = DATA.rules;
+let liveScores = {};
+const withPicks = DATA.weeks.filter(w => !w.slate);
+let selected = (withPicks[withPicks.length - 1] || DATA.weeks[DATA.weeks.length - 1] || { week: 1 }).week;
+let view = 'week';   // 'week', 'money', 'league' or 'me'
+
+// ---------- scores ----------
+function simplify(data) {
+  return (data.events || []).map(ev => {
+    const comp = ev.competitions[0];
+    const side = {};
+    comp.competitors.forEach(t => side[t.homeAway] = t);
+    const st = comp.status.type;
+    return {
+      home: side.home.team.abbreviation, away: side.away.team.abbreviation,
+      homeScore: +(side.home.score || 0), awayScore: +(side.away.score || 0),
+      state: st.state, detail: st.shortDetail, date: ev.date,
+    };
+  });
+}
+
+async function fetchWeek(week) {
+  const url = `https://site.api.espn.com/apis/site/v2/sports/football/nfl/scoreboard?seasontype=2&week=${week}&dates=${DATA.season}&_=${Date.now()}`;
+  const r = await fetch(url, { cache: 'no-store' });
+  if (!r.ok) throw new Error('HTTP ' + r.status);
+  return simplify(await r.json());
+}
+
+async function refreshAll() {
+  const status = document.getElementById('status');
+  let ok = 0;
+  await Promise.all(DATA.weeks.map(async w => {
+    try { liveScores[w.week] = await fetchWeek(w.week); ok++; } catch (e) {}
+  }));
+  const time = new Date().toLocaleTimeString([], {hour:'numeric', minute:'2-digit'});
+  status.innerHTML = ok
+    ? `<span class="dot"></span> Live scores · updated ${time} · <a id="refresh">refresh</a>`
+    : `<span class="dot off"></span> <span class="err">Couldn't reach ESPN. Showing scores from ${DATA.built}.</span> <a id="refresh">Try again</a>`;
+  document.getElementById('refresh').onclick = refreshAll;
+  render();
+}
+
+function scoresFor(week) {
+  if (liveScores[week]) return liveScores[week];
+  const w = DATA.weeks.find(x => x.week === week);
+  return (w && w.snapshot) || [];
+}
+
+// ---------- grading (a push counts as a loss) ----------
+function gradeGame(game, s) {
+  if (!s) return { state: 'none', covered: null, push: false };
+  const favScore = s.home === game.fav ? s.homeScore : s.awayScore;
+  const dogScore = s.home === game.dog ? s.homeScore : s.awayScore;
+  const favMargin = favScore - dogScore - game.spread;
+  let covered = null, push = false;
+  if (s.state !== 'pre') {
+    if (favMargin > 0) covered = 'fav';
+    else if (favMargin < 0) covered = 'dog';
+    else push = true;
+  }
+  return { state: s.state, favScore, dogScore, covered, push, detail: s.detail, date: s.date,
+           homeTeam: s.home, awayTeam: s.away, homeScore: s.homeScore, awayScore: s.awayScore };
+}
+
+function gradeWeek(w) {
+  const scores = scoresFor(w.week);
+  const games = w.games.map(g => ({ ...g, ...gradeGame(g, scores.find(s =>
+    (s.home === g.fav && s.away === g.dog) || (s.home === g.dog && s.away === g.fav))) }));
+  const byTeam = {};
+  games.forEach(g => { byTeam[g.fav] = g; byTeam[g.dog] = g; });
+
+  const players = w.players.map(p => {
+    let wins = 0, losses = 0, left = 0;
+    const picks = p.picks.map(pk => {
+      const g = pk.team ? byTeam[pk.team] : null;
+      if (!g) return { team: null, label: pk.raw, cls: 'pend', mark: '?', title: 'Not recognized: ' + pk.raw };
+      const isFav = g.fav === pk.team;
+      const opp = isFav ? g.dog : g.fav;
+      const line = isFav ? `-${g.spread}` : `+${g.spread}`;
+      const my = isFav ? g.favScore : g.dogScore, theirs = isFav ? g.dogScore : g.favScore;
+      const winning = !g.push && (g.covered === 'fav') === isFav;
+      let cls, mark = '';
+      if (g.state === 'none' || g.state === 'pre') { cls = 'pend'; left++; }
+      else if (g.state === 'post') { cls = winning ? 'win' : 'loss'; mark = winning ? '✓' : '✗'; winning ? wins++ : losses++; }
+      else { cls = 'live'; mark = winning ? '▲' : '▼'; left++; }
+      const title = `${pk.team} ${TEAMS[pk.team]} ${line} vs ${opp} ${TEAMS[opp]}` +
+        (g.state === 'pre' || g.state === 'none' ? '' : ` · ${my}-${theirs}` + (g.push ? ' (push = loss)' : '') + (g.detail ? ` · ${g.detail}` : ''));
+      const homeTeam = g.home || (g.state !== 'none' ? g.homeTeam : null);
+      const margin = g.state === 'pre' || g.state === 'none' ? null : (my - theirs) + (isFav ? -g.spread : g.spread);
+      return { team: pk.team, label: `${pk.team} ${line}`, cls, mark, title,
+               opp, isFav, line, spread: g.spread, isHome: homeTeam ? homeTeam === pk.team : null,
+               state: g.state, final: g.state === 'post', winning, push: g.push, my, theirs, margin };
+    });
+    return { name: p.name, picks, wins, losses, left };
+  });
+  return { week: w.week, games, players, problems: w.problems, slate: !!w.slate, audit: w.audit || null };
+}
+
+// ---------- rendering ----------
+const esc = s => String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+
+function gameCard(g) {
+  const started = g.state === 'in' || g.state === 'post';
+  const isDog = t => t === g.dog;
+  const line = `${g.fav} -${g.spread}`;
+  let st;
+  if (g.state === 'in') st = `<div class="st live"><span>${esc(g.detail || 'LIVE')}</span><span class="ln">${line}</span></div>`;
+  else if (g.state === 'post') st = `<div class="st"><span>${esc(g.detail || 'Final')}</span><span class="ln">${line}</span></div>`;
+  else st = `<div class="st"><span>${g.date ? new Date(g.date).toLocaleString([], {weekday:'short', hour:'numeric', minute:'2-digit'}) : 'TBD'}</span><span class="ln">${line}</span></div>`;
+  const home = g.home || g.homeTeam || g.dog, away = home === g.fav ? g.dog : g.fav;
+  const row = t => {
+    const sc = started ? (t === g.fav ? g.favScore : g.dogScore) : '';
+    const oppSc = started ? (t === g.fav ? g.dogScore : g.favScore) : '';
+    const covered = started && !g.push && ((g.covered === 'fav') !== isDog(t));
+    const winning = started && sc > oppSc;
+    return `<div class="t ${winning ? 'w' : ''}">${logo(t)}<span class="ab">${t}</span>${covered ? `<span class="cv">${g.state === 'post' ? 'COVER' : 'covering'}</span>` : g.push && started ? '<span class="cv muted">PUSH</span>' : ''}<span class="sc">${sc}</span></div>`;
+  };
+  return `<div class="g">${st}${row(away)}${row(home)}</div>`;
+}
+
+function render() {
+  const graded = DATA.weeks.map(gradeWeek);
+  document.getElementById('season').textContent = DATA.season;
+  document.getElementById('tabs').innerHTML = DATA.weeks.map(w =>
+    `<button class="${view === 'week' && w.week === selected ? 'on' : ''}" data-w="${w.week}">Week ${w.week}</button>`).join('') +
+    `<button class="me ${view === 'money' ? 'on' : ''}" data-v="money">💰 Money</button>` +
+    `<button class="${view === 'league' ? 'on' : ''}" data-v="league">📈 League</button>` +
+    (ME ? `<button class="${view === 'me' ? 'on' : ''}" data-v="me">📊 ${esc(ME)}</button>` : '');
+  document.querySelectorAll('#tabs button').forEach(b => b.onclick = () => {
+    if (b.dataset.v) view = b.dataset.v; else { view = 'week'; selected = +b.dataset.w; }
+    render();
+  });
+  const cur = graded.find(g => g.week === selected) || graded[graded.length - 1];
+  if (!cur) { document.getElementById('main').innerHTML = '<div class="sec"><h2>No picks files found</h2></div>'; return; }
+  const bank = money(graded);
+  if (view === 'money') { renderMoney(graded, bank); return; }
+  if (view === 'league') { renderLeague(graded, bank); return; }
+  if (view === 'me') { renderStats(graded, bank); return; }
+  const mw = bank.weeks.find(w => w.week === cur.week);
+  cur.players.forEach(p => { if (mw && p.picks.length !== mw.expectedPicks)
+    cur.problems = cur.problems.concat(`${p.name}: ${p.picks.length} picks entered, but week ${cur.week} calls for ${mw.expectedPicks}` + (mw.mult > 1 ? ' (carryover week)' : '')); });
+
+  const checked = auditWeek(cur);
+  document.getElementById('strip').innerHTML = cur.games.map(gameCard).join('');
+
+  document.getElementById('warnings').innerHTML = cur.problems.length
+    ? `<div class="warn"><b>Week ${cur.week}: worth a look.</b><ul>${cur.problems.map(p => `<li>${esc(p)}</li>`).join('')}</ul></div>` : '';
+
+  const season = {};
+  graded.forEach(g => g.players.forEach(p => {
+    const t = season[p.name] || (season[p.name] = { wins: 0, losses: 0 });
+    t.wins += p.wins; t.losses += p.losses;
+  }));
+  const multi = graded.filter(g => g.players.length).length > 1;
+  const rows = cur.players.slice().sort((a, b) =>
+    (season[b.name].wins - season[a.name].wins) || (b.wins - a.wins) || a.name.localeCompare(b.name));
+
+  if (cur.slate) {
+    let sh = prizeBanner(bank, mw) + `<div class="sec"><h2>Week ${cur.week} lines<small>from the pick sheet</small></h2><div class="scroll"><table><thead><tr><th>Favorite</th><th class="num">Line</th><th>Underdog</th><th>Kickoff</th></tr></thead><tbody>`;
+    cur.games.forEach(g => sh += `<tr><td class="name">${logo(g.fav)} ${g.fav} ${TEAMS[g.fav]}${g.home === g.fav ? ' <span class="muted">(home)</span>' : ''}</td><td class="num">-${g.spread}</td><td class="name">${logo(g.dog)} ${g.dog} ${TEAMS[g.dog]}${g.home === g.dog ? ' <span class="muted">(home)</span>' : ''}</td><td class="muted">${g.date ? new Date(g.date).toLocaleString([], {weekday:'short', hour:'numeric', minute:'2-digit'}) : ''}</td></tr>`);
+    document.getElementById('main').innerHTML = sh + `</tbody></table></div></div>`;
+    document.getElementById('built').textContent = DATA.pool ? `Updated ${DATA.built}. Scores refresh live.` : `Picks loaded ${DATA.built}. Double-click "Update Picks" after the Final Picks email goes out.`;
+    return;
+  }
+  let html = prizeBanner(bank, mw, checked && (cur.auditNote || true)) + `<div class="sec"><h2>Standings<small>${multi ? 'sorted by season wins' : `Week ${cur.week}`}</small></h2><div class="scroll"><table>
+    <thead><tr><th></th><th>Player</th><th class="num">Week ${cur.week}</th><th class="num">Left</th>${multi ? '<th class="num">Season</th><th class="num">Pct</th>' : '<th class="num">Pct</th>'}</tr></thead><tbody>`;
+  rows.forEach((p, i) => {
+    const s = season[p.name];
+    const pct = s.wins + s.losses ? ('.' + Math.round(1000 * s.wins / (s.wins + s.losses)).toString().padStart(3, '0')) : '';
+    html += `<tr class="${s.wins === season[rows[0].name].wins ? 'lead' : ''}"><td class="rank">${i + 1}</td><td class="name">${esc(p.name)}</td>
+      <td class="num ${multi ? '' : 'big'}">${p.wins}-${p.losses}</td>
+      <td class="num muted">${p.left || ''}</td>
+      ${multi ? `<td class="num big">${s.wins}-${s.losses}</td>` : ''}<td class="num">${pct}</td></tr>`;
+  });
+  html += `</tbody></table></div></div>`;
+
+  html += `<div class="sec"><h2>Week ${cur.week} picks<small>hover a pick for the score · a push counts as a loss</small></h2><div class="scroll"><table><tbody>`;
+  rows.forEach(p => {
+    html += `<tr><td class="name">${esc(p.name)}</td><td><div class="chips">${
+      p.picks.map(pk => `<span class="chip ${pk.cls}" title="${esc(pk.title)}">${pk.team ? logo(pk.team) : ''}${esc(pk.label)}<span class="m">${pk.mark}</span></span>`).join('')
+    }</div></td></tr>`;
+  });
+  html += `</tbody></table></div></div>`;
+
+  document.getElementById('main').innerHTML = html;
+  document.getElementById('built').textContent = DATA.pool ? `Updated ${DATA.built}. Scores refresh live.` : `Picks loaded ${DATA.built}. To add a week, drop the new spreadsheet in the Football Pickem folder and double-click "Update Picks".`;
+}
+
+// ---------- audit of the commissioner's hand scoring ----------
+// Compares his sheet with real final scores at four levels: which side covered each
+// game, the green/yellow mark on every pick, each player's win count, and the Totals
+// sheet. Adds anything that's off to the week's "worth a look" box. Returns true
+// when he has scored the week and everything agrees.
+function auditWeek(cur) {
+  const a = cur.audit;
+  if (!a) return false;
+  const issues = [];
+  const byTeam = {};
+  cur.games.forEach(g => { byTeam[g.fav] = g; byTeam[g.dog] = g; });
+  const score = g => `${g.fav} ${g.favScore}, ${g.dog} ${g.dogScore}, line ${g.fav} -${g.spread}`;
+  let compared = 0;
+  a.covers.forEach(c => {
+    const g = byTeam[c.fav];
+    if (!g || g.state !== 'post' || !c.cover) return;
+    compared++;
+    const real = g.push ? 'push' : g.covered;
+    if (real === 'push') issues.push(`${c.fav} vs ${c.dog}: his sheet marks ${c[c.cover]} as covering, but it was a push (${score(g)}), so both sides lose`);
+    else if (real !== c.cover) issues.push(`${c.fav} vs ${c.dog}: his sheet marks ${c[c.cover]} as covering, but ${g[real]} covered (${score(g)})`);
+  });
+  cur.players.forEach(p => {
+    const marks = a.marks[p.name] || {};
+    let greens = 0;
+    p.picks.forEach(pk => {
+      const m = marks[pk.team];
+      if (m === 'W') greens++;
+      if (!pk.final || !m) return;
+      compared++;
+      if ((m === 'W') !== pk.winning) issues.push(`${p.name}: ${pk.team} ${pk.line} is marked as a ${m === 'W' ? 'win' : 'loss'} on his sheet, but it ${pk.winning ? 'won' : 'lost'} (${pk.my}-${pk.theirs})`);
+    });
+    const off = a.official[p.name];
+    const done = p.left === 0;
+    if (off != null && done && off !== p.wins) issues.push(`${p.name}: his sheet says ${off} wins, the real count is ${p.wins}`);
+    if (off != null && Object.keys(marks).length && greens !== off) issues.push(`${p.name}: his sheet shows ${off} wins but has ${greens} picks colored green`);
+    const tot = a.totals[p.name];
+    if (tot != null && off != null && tot !== off) issues.push(`${p.name}: Totals sheet has ${tot} for week ${cur.week}, but the Picks sheet says ${off}`);
+    if (tot != null && off == null && done && tot !== p.wins) issues.push(`${p.name}: Totals sheet has ${tot} for week ${cur.week}, the real count is ${p.wins}`);
+  });
+  (a.changed || []).forEach(c => issues.push(c));
+  cur.problems = cur.problems.concat(issues);
+  cur.auditNote = `Checked against ${a.source}: ${a.covers.filter(c => c.cover).length} game results, ${cur.players.reduce((n, p) => n + Object.values(a.marks[p.name] || {}).filter(Boolean).length, 0)} pick marks, ${Object.keys(a.official).length} win totals, ${Object.keys(a.totals).length} Totals sheet entries.`;
+  return !issues.length && compared > 0 && cur.players.every(p => p.left === 0);
+}
+
+// ---------- money ----------
+// Everyone pays RULES.fee each week. Weekly winner gets RULES.prize; the rest goes
+// to the season pot. A tie carries the prize over: next week is worth one more
+// prize and everyone makes one more pick, until somebody wins outright.
+const usd = n => (n < 0 ? '-$' : '$') + Math.abs(n);
+const names = a => a.length <= 2 ? a.join(' and ') : a.slice(0, -1).join(', ') + ' and ' + a[a.length - 1];
+
+function money(graded) {
+  let carry = 0, pot = 0;
+  const weeks = [], ledger = {};
+  graded.forEach(g => {
+    const mult = carry + 1, worth = RULES.prize * mult, expectedPicks = RULES.basePicks + carry;
+    if (!g.players.length) { weeks.push({ week: g.week, mult, worth, expectedPicks, status: 'slate', leaders: [], top: 0 }); return; }
+    pot += g.players.length * RULES.fee - RULES.prize;
+    g.players.forEach(p => { (ledger[p.name] || (ledger[p.name] = { paid: 0, won: 0, weeksWon: 0 })).paid += RULES.fee; });
+    const complete = g.players.length > 0 && g.players.every(p => p.left === 0 && p.wins + p.losses > 0);
+    const top = Math.max(...g.players.map(p => p.wins));
+    const leaders = g.players.filter(p => p.wins === top).map(p => p.name);
+    let status = 'open';
+    if (complete && leaders.length === 1) { status = 'won'; ledger[leaders[0]].won += worth; ledger[leaders[0]].weeksWon++; carry = 0; }
+    else if (complete) { status = 'tie'; carry++; }
+    weeks.push({ week: g.week, mult, worth, expectedPicks, status, leaders, top });
+  });
+  const last = weeks[weeks.length - 1];
+  const next = last && (last.status === 'won' || last.status === 'tie')
+    ? { week: last.week + 1, worth: RULES.prize * (carry + 1), picks: RULES.basePicks + carry, mult: carry + 1 } : null;
+  return { weeks, ledger, pot, next };
+}
+
+function prizeBanner(bank, w, checked) {
+  if (!w) return '';
+  const tag = w.mult > 1 ? ` <span class="bx">${w.mult}x week · ${w.expectedPicks} picks</span>` : '';
+  let body;
+  if (w.status === 'won') body = `<b>${esc(w.leaders[0])}</b> wins the week with ${w.top} and takes <b>${usd(w.worth)}</b>.`;
+  else if (w.status === 'tie') body = `No winner. <b>${esc(names(w.leaders))}</b> tied at ${w.top}, so the ${usd(w.worth)} carries over. ` +
+    `<b>Week ${w.week + 1} is worth ${usd(w.worth + RULES.prize)} and everyone makes ${w.expectedPicks + 1} picks.</b>`;
+  else if (w.status === 'slate') body = `Pick sheet is out. Picks aren't in yet. <b>${w.expectedPicks} picks</b> this week.`;
+  else body = w.top > 0 ? `In progress. ${esc(names(w.leaders))} ${w.leaders.length > 1 ? 'lead' : 'leads'} with ${w.top}.` : `Games haven't started.`;
+  if (checked) body += ` <span class="okc" title="${esc(checked === true ? '' : checked)}">✓ commissioner's scoring verified</span>`;
+  return `<div class="prize ${w.status}"><div class="pw">${usd(w.worth)}<small>Week ${w.week} prize</small></div><div class="pb">${body}${tag}</div></div>`;
+}
+
+function renderMoney(graded, bank) {
+  document.getElementById('strip').innerHTML = '';
+  document.getElementById('warnings').innerHTML = '';
+  const season = {};
+  graded.forEach(g => g.players.forEach(p => { const t = season[p.name] || (season[p.name] = { name: p.name, w: 0, l: 0 }); t.w += p.wins; t.l += p.losses; }));
+  const table = Object.values(season).sort((a, b) => b.w - a.w || a.l - b.l);
+  const potLeaders = table.filter(t => t.w === table[0].w).map(t => t.name);
+  const cur = bank.weeks[bank.weeks.length - 1];
+  const up = bank.next || (cur && { week: cur.week, worth: cur.worth, picks: cur.expectedPicks, mult: cur.mult });
+
+  let html = `<div class="hero">
+    <div><div class="hn">Money</div><div class="hs">${usd(RULES.fee)} a week · ${usd(RULES.prize)} to the weekly winner · the rest to the season pot</div></div>
+    <div class="hstat"><div class="hv">${usd(bank.pot)}</div><div class="hl">Season pot</div></div>
+    ${up ? `<div class="hstat"><div class="hv">${usd(up.worth)}</div><div class="hl">Week ${up.week} prize${up.mult > 1 ? ` · ${up.picks} picks` : ''}</div></div>` : ''}
+  </div>`;
+
+  html += `<div class="two"><div class="sec"><h2>Weekly prizes</h2><div class="scroll"><table><thead><tr><th>Week</th><th class="num">Worth</th><th class="num">Picks</th><th>Result</th></tr></thead><tbody>`;
+  bank.weeks.forEach(w => {
+    const res = w.status === 'won' ? `<b>${esc(w.leaders[0])}</b> <span class="muted">(${w.top} wins)</span>`
+      : w.status === 'tie' ? `Tie at ${w.top}: ${esc(names(w.leaders))} <span class="muted">· carried over</span>`
+      : w.status === 'slate' ? `<span class="muted">Picks not in yet</span>` : `<span class="muted">In progress</span>`;
+    html += `<tr><td class="name">Week ${w.week}</td><td class="num big">${usd(w.worth)}</td><td class="num">${w.expectedPicks}</td><td class="wrap-ok">${res}</td></tr>`;
+  });
+  if (bank.next) html += `<tr><td class="name muted">Week ${bank.next.week}</td><td class="num big muted">${usd(bank.next.worth)}</td><td class="num muted">${bank.next.picks}</td><td class="muted">Up next</td></tr>`;
+  html += `</tbody></table></div></div>`;
+
+  html += `<div class="sec"><h2>Ledger<small>season pot pays out at year end</small></h2><div class="scroll"><table><thead><tr><th>Player</th><th class="num">Paid in</th><th class="num">Won</th><th class="num">Net</th></tr></thead><tbody>`;
+  Object.entries(bank.ledger).sort((a, b) => (b[1].won - b[1].paid) - (a[1].won - a[1].paid) || a[0].localeCompare(b[0]))
+    .forEach(([n, l]) => { const net = l.won - l.paid;
+      html += `<tr><td class="name">${esc(n)}</td><td class="num">${usd(l.paid)}</td><td class="num">${l.won ? usd(l.won) : '<span class="muted">—</span>'}</td><td class="num ${net > 0 ? 'good' : net < 0 ? 'bad' : ''}">${usd(net)}</td></tr>`; });
+  html += `</tbody></table></div></div></div>`;
+
+  html += `<div class="sec"><h2>Season pot race<small>${usd(bank.pot)} so far, to the best record at the end of the year</small></h2><div class="scroll"><table><thead><tr><th></th><th>Player</th><th class="num">Record</th><th class="num">Back</th></tr></thead><tbody>`;
+  table.forEach((t, i) => html += `<tr class="${t.w === table[0].w ? 'lead' : ''}"><td class="rank">${i + 1}</td><td class="name">${esc(t.name)}</td><td class="num big">${t.w}-${t.l}</td><td class="num muted">${table[0].w - t.w || '—'}</td></tr>`);
+  html += `</tbody></table></div></div>`;
+
+  document.getElementById('main').innerHTML = html;
+  document.getElementById('built').textContent = `Red means owes, green means ahead. Season pot grows by ${usd(Object.keys(bank.ledger).length * RULES.fee - RULES.prize)} each week.`;
+}
+
+// ---------- league stats page ----------
+function renderLeague(graded, bank) {
+  document.getElementById('strip').innerHTML = '';
+  document.getElementById('warnings').innerHTML = '';
+  const main = document.getElementById('main');
+  const P = {}, T = {}, lopsided = [], weekRows = [];
+  const majority = { w: 0, l: 0 };
+  graded.forEach(g => {
+    if (!g.players.length) return;
+    const cnt = {};
+    g.players.forEach(p => p.picks.forEach(pk => { if (pk.team) cnt[pk.team] = (cnt[pk.team] || 0) + 1; }));
+    g.players.forEach(p => {
+      const me = P[p.name] || (P[p.name] = { name: p.name, picks: [], weeks: [] });
+      me.weeks.push({ week: g.week, wins: p.wins, losses: p.losses, left: p.left });
+      p.picks.forEach(pk => {
+        if (!pk.team) return;
+        me.picks.push({ ...pk, week: g.week, same: cnt[pk.team] - 1, other: cnt[pk.opp] || 0 });
+        (T[pk.team] || (T[pk.team] = { on: [], vs: [] })).on.push(pk);
+        (T[pk.opp] || (T[pk.opp] = { on: [], vs: [] })).vs.push(pk);
+      });
+    });
+    g.games.forEach(gm => {
+      const f = cnt[gm.fav] || 0, d = cnt[gm.dog] || 0;
+      if (gm.state !== 'post' || f === d || !(f + d)) return;
+      const maj = f > d ? 'fav' : 'dog', won = !gm.push && gm.covered === maj;
+      won ? majority.w++ : majority.l++;
+      const n = Math.max(f, d);
+      if (n / (f + d) >= 0.75 && f + d >= 4)
+        lopsided.push({ week: g.week, team: gm[maj], line: (maj === 'fav' ? '-' : '+') + gm.spread, n, of: f + d, won, score: `${gm.fav} ${gm.favScore}, ${gm.dog} ${gm.dogScore}` });
+    });
+    const done = g.players.every(p => p.left === 0);
+    const hi = Math.max(...g.players.map(p => p.wins)), lo = Math.min(...g.players.map(p => p.wins));
+    weekRows.push({ week: g.week, done, hi, lo, avg: g.players.reduce((n, p) => n + p.wins, 0) / g.players.length,
+      top: g.players.filter(p => p.wins === hi).map(p => p.name), picks: g.players[0] ? g.players[0].picks.length : 0 });
+  });
+
+  const players = Object.values(P);
+  const all = players.flatMap(p => p.picks);
+  const total = rec(all);
+  if (!all.length) { main.innerHTML = `<div class="sec"><h2>League</h2><div class="pad">No picks yet.</div></div>`; return; }
+  const favs = all.filter(p => p.isFav), dogs = all.filter(p => !p.isFav);
+  const home = all.filter(p => p.isHome === true), away = all.filter(p => p.isHome === false);
+  const share = (list, fn) => list.length ? list.filter(fn).length / list.length : 0;
+  const pctN = x => Math.round(100 * x) + '%';
+  const rate = r => r.n ? r.w / r.n : -1;
+
+  players.forEach(p => {
+    p.rec = rec(p.picks);
+    p.favShare = share(p.picks, k => k.isFav);
+    p.fav = rec(p.picks.filter(k => k.isFav)); p.dog = rec(p.picks.filter(k => !k.isFav));
+    p.withC = rec(p.picks.filter(k => k.same > k.other)); p.agC = rec(p.picks.filter(k => k.same < k.other));
+    p.contra = share(p.picks, k => k.same < k.other);
+    p.close = rec(p.picks.filter(k => k.final && Math.abs(k.margin) <= 3));
+    p.best = p.weeks.filter(w => !w.left).sort((a, b) => b.wins - a.wins)[0];
+    p.net = bank.ledger[p.name] ? bank.ledger[p.name].won - bank.ledger[p.name].paid : 0;
+  });
+  players.sort((a, b) => b.rec.w - a.rec.w || a.rec.l - b.rec.l || a.name.localeCompare(b.name));
+
+  // how alike are two players' cards?
+  const pairs = [];
+  for (let i = 0; i < players.length; i++) for (let j = i + 1; j < players.length; j++) {
+    let agree = 0, both = 0;
+    const b = {}; players[j].picks.forEach(k => b[k.week + k.team] = 1, 0);
+    const bo = {}; players[j].picks.forEach(k => bo[k.week + k.opp] = 1);
+    players[i].picks.forEach(k => { if (b[k.week + k.team]) { agree++; both++; } else if (bo[k.week + k.team]) both++; });
+    if (both >= 5) pairs.push({ a: players[i].name, b: players[j].name, agree, both, r: agree / both });
+  }
+  pairs.sort((x, y) => y.r - x.r);
+
+  const teamRows = Object.entries(T).map(([t, v]) => ({ t, on: v.on.length, onR: rec(v.on), vs: v.vs.length, vsR: rec(v.vs) }))
+    .sort((a, b) => b.on - a.on || a.t.localeCompare(b.t));
+
+  // insights
+  const ins = [];
+  const p100 = r => r.n ? Math.round(100 * r.w / r.n) : 0;
+  ins.push(`The pool is ${recStr(total)} against the spread (${p100(total)}%). ` + (p100(total) >= 50 ? `Better than a coin flip as a group.` : `The lines are winning so far.`));
+  ins.push(`${pctN(share(all, k => k.isFav))} of all picks are favorites. Favorites are ${recStr(rec(favs))} (${p100(rec(favs))}%), underdogs ${recStr(rec(dogs))} (${p100(rec(dogs))}%).`);
+  if (majority.w + majority.l) ins.push(`When most of the pool lands on one side, the majority is ${majority.w}-${majority.l}. ` +
+    (majority.w > majority.l ? `Following the crowd has paid.` : majority.w < majority.l ? `Fading the crowd has paid.` : ''));
+  const chalk = players.slice().sort((a, b) => b.favShare - a.favShare)[0], dogLover = players.slice().sort((a, b) => a.favShare - b.favShare)[0];
+  if (chalk !== dogLover) ins.push(`${chalk.name} plays the most chalk (${pctN(chalk.favShare)} favorites, ${recStr(chalk.fav)} on them). ${dogLover.name} takes the most underdogs (${pctN(1 - dogLover.favShare)}, ${recStr(dogLover.dog)} on them).`);
+  const rebel = players.slice().sort((a, b) => b.contra - a.contra)[0];
+  ins.push(`${rebel.name} goes against the crowd most often (${pctN(rebel.contra)} of picks) and is ${recStr(rebel.agC)} when doing it.`);
+  const graded5 = teamRows.filter(r => r.onR.n >= 4);
+  if (graded5.length) {
+    const money = graded5.slice().sort((a, b) => rate(b.onR) - rate(a.onR) || b.on - a.on)[0], killer = graded5.slice().sort((a, b) => rate(a.onR) - rate(b.onR) || b.on - a.on)[0];
+    ins.push(`Most popular team: ${teamRows[0].t} with ${plural(teamRows[0].on, 'pick')}. Best for the pool: ${money.t} (${recStr(money.onR)}). Pool killer: ${killer.t} (${recStr(killer.onR)}).`);
+  }
+  const closeAll = players.filter(p => p.close.n >= 2);
+  if (closeAll.length) {
+    const lucky = closeAll.slice().sort((a, b) => rate(b.close) - rate(a.close) || b.close.n - a.close.n)[0], unlucky = closeAll.slice().sort((a, b) => rate(a.close) - rate(b.close) || b.close.n - a.close.n)[0];
+    if (lucky !== unlucky) ins.push(`In games decided by 3 or less against the number, ${lucky.name} is ${recStr(lucky.close)} and ${unlucky.name} is ${recStr(unlucky.close)}.`);
+  }
+  if (pairs.length) ins.push(`Most alike: ${pairs[0].a} and ${pairs[0].b} agree on ${pctN(pairs[0].r)} of shared games. Least alike: ${pairs[pairs.length - 1].a} and ${pairs[pairs.length - 1].b} at ${pctN(pairs[pairs.length - 1].r)}.`);
+  const bestWk = weekRows.filter(w => w.done).sort((a, b) => b.hi / b.picks - a.hi / a.picks)[0];
+  if (bestWk) ins.push(`Best single week so far: ${names(bestWk.top)} with ${bestWk.hi} of ${bestWk.picks} in Week ${bestWk.week}.`);
+
+  const cell = r => r.n ? `${r.w}-${r.l}` : '<span class="muted">—</span>';
+  const best = (key) => { const v = Math.max(...players.map(p => rate(p[key]))); return p => p[key].n >= 2 && rate(p[key]) === v ? 'good' : ''; };
+  const bFav = best('fav'), bDog = best('dog'), bWith = best('withC'), bAg = best('agC');
+
+  let html = `<div class="hero"><div><div class="hn">League</div><div class="hs">${plural(weekRows.length, 'week')} · ${plural(players.length, 'player')} · ${plural(total.n, 'graded pick')}</div></div>
+    <div class="hstat"><div class="hv">${recStr(total)}</div><div class="hl">Pool vs the spread</div></div>
+    <div class="hstat"><div class="hv">${p100(total)}%</div><div class="hl">Win pct</div></div>
+    <div class="hstat"><div class="hv">${majority.w}-${majority.l}</div><div class="hl">Majority side</div></div>
+  </div>`;
+  html += `<div class="sec"><h2>Insights</h2><ul class="ins">${ins.map(i => `<li>${esc(i)}</li>`).join('')}</ul></div>`;
+
+  html += `<div class="sec"><h2>Pool tendencies</h2><div class="tiles">` +
+    [['Favorites', favs], ['Underdogs', dogs], ['Home teams', home], ['Road teams', away],
+     ['With the crowd', all.filter(k => k.same > k.other)], ['Against the crowd', all.filter(k => k.same < k.other)],
+     ['Spread under 3', all.filter(k => k.spread < 3)], ['Spread 3 to 6.5', all.filter(k => k.spread >= 3 && k.spread < 7)], ['Spread 7+', all.filter(k => k.spread >= 7)]]
+    .map(([label, list]) => { const r = rec(list); return `<div class="tile"><div class="tl">${label}</div><div class="tv">${recStr(r)}</div><div class="ts">${plural(list.length, 'pick')}${r.n ? ' · ' + pct(r) : ''}</div></div>`; }).join('') + `</div></div>`;
+
+  html += `<div class="sec"><h2>Player by player<small>green marks the best in each column</small></h2><div class="scroll"><table><thead><tr><th></th><th>Player</th><th class="num">Record</th><th class="num">Pct</th><th class="num">Fav share</th><th class="num">On favs</th><th class="num">On dogs</th><th class="num">With crowd</th><th class="num">Against</th><th class="num">Close games</th><th class="num">Best week</th><th class="num">Net $</th></tr></thead><tbody>`;
+  players.forEach((p, i) => html += `<tr class="${p.name === ME ? 'mine' : ''}"><td class="rank">${i + 1}</td><td class="name">${esc(p.name)}</td><td class="num big">${recStr(p.rec)}</td><td class="num">${pct(p.rec)}</td>
+    <td class="num">${pctN(p.favShare)}</td><td class="num ${bFav(p)}">${cell(p.fav)}</td><td class="num ${bDog(p)}">${cell(p.dog)}</td><td class="num ${bWith(p)}">${cell(p.withC)}</td><td class="num ${bAg(p)}">${cell(p.agC)}</td>
+    <td class="num">${cell(p.close)}</td><td class="num">${p.best ? `${p.best.wins}-${p.best.losses}` : '<span class="muted">—</span>'}</td><td class="num ${p.net > 0 ? 'good' : p.net < 0 ? 'bad' : ''}">${usd(p.net)}</td></tr>`);
+  html += `</tbody></table></div></div>`;
+
+  html += `<div class="two"><div class="sec"><h2>Week by week</h2><div class="scroll"><table><thead><tr><th>Week</th><th class="num">High</th><th class="num">Avg</th><th class="num">Low</th><th>Top score</th></tr></thead><tbody>`;
+  weekRows.forEach(w => html += `<tr><td class="name">Week ${w.week}${w.done ? '' : ' <span class="muted">(live)</span>'}</td><td class="num big">${w.hi}</td><td class="num">${w.avg.toFixed(1)}</td><td class="num">${w.lo}</td><td class="wrap-ok">${w.hi === 0 ? '<span class="muted">No games final yet</span>' : esc(names(w.top))}</td></tr>`);
+  html += `</tbody></table></div></div>`;
+
+  html += `<div class="sec"><h2>Who picks alike<small>share of games on the same side</small></h2><div class="scroll"><table><tbody>`;
+  const showPairs = pairs.length > 6 ? pairs.slice(0, 3).concat(pairs.slice(-3)) : pairs;
+  showPairs.forEach((x, i) => html += `<tr><td class="muted">${pairs.length > 6 ? (i < 3 ? 'Most alike' : 'Least alike') : ''}</td><td class="name">${esc(x.a)} &amp; ${esc(x.b)}</td><td class="num">${x.agree} of ${x.both}</td><td class="num big">${pctN(x.r)}</td></tr>`);
+  html += `</tbody></table></div></div></div>`;
+
+  html += `<div class="two"><div class="sec"><h2>Lopsided games<small>75% or more of the pool on one side</small></h2><div class="scroll"><table><tbody>`;
+  if (!lopsided.length) html += `<tr><td class="muted">None finished yet.</td></tr>`;
+  lopsided.sort((a, b) => b.week - a.week || b.n / b.of - a.n / a.of).slice(0, 12).forEach(x => html += `<tr><td class="muted">Wk ${x.week}</td><td class="name">${logo(x.team)} ${x.team} ${x.line}</td><td class="num">${x.n} of ${x.of}</td><td class="num"><span class="chip ${x.won ? 'win' : 'loss'}">${x.won ? 'crowd won' : 'crowd lost'}</span></td></tr>`);
+  html += `</tbody></table></div></div>`;
+
+  html += `<div class="sec"><h2>Teams<small>how the pool does picking them, and picking against them</small></h2><div class="scroll"><table><thead><tr><th>Team</th><th class="num">Picked</th><th class="num">Record</th><th class="num">Faded</th><th class="num">Record</th></tr></thead><tbody>`;
+  teamRows.slice(0, 12).forEach(r => html += `<tr><td class="name">${logo(r.t)} ${r.t} ${TEAMS[r.t]}</td><td class="num">${r.on}</td><td class="num">${cell(r.onR)}</td><td class="num">${r.vs}</td><td class="num">${cell(r.vsR)}</td></tr>`);
+  html += `</tbody></table></div></div></div>`;
+
+  main.innerHTML = html;
+  document.getElementById('built').textContent = `Records count finished games only, and a push is a loss. "Crowd" means the side most of the pool took in that game.`;
+}
+
+// ---------- personal stats page ----------
+const rec = list => { let w = 0, l = 0; list.forEach(p => { if (p.final) p.winning ? w++ : l++; }); return { w, l, n: w + l }; };
+const recStr = r => r.n ? `${r.w}-${r.l}` : '—';
+const pct = r => r.n ? Math.round(100 * r.w / r.n) + '%' : '';
+const plural = (n, s) => `${n} ${s}${n === 1 ? '' : 's'}`;
+
+function renderStats(graded, bank) {
+  const weeks = [];          // per-week summary for ME
+  const picks = [];          // every pick by ME, enriched
+  const h2h = {};            // other player -> { w, l, same }
+  graded.forEach(g => {
+    const me = g.players.find(p => p.name === ME);
+    if (!me) return;
+    const cnt = {};
+    g.players.forEach(p => p.picks.forEach(pk => { if (pk.team) cnt[pk.team] = (cnt[pk.team] || 0) + 1; }));
+    const others = g.players.length - 1;
+    me.picks.forEach(pk => {
+      if (!pk.team) return;
+      picks.push({ ...pk, week: g.week, same: (cnt[pk.team] || 0) - 1, other: cnt[pk.opp] || 0, others });
+    });
+    const sorted = g.players.slice().sort((a, b) => b.wins - a.wins || a.losses - b.losses);
+    const rank = sorted.findIndex(p => p.name === ME) + 1;
+    const avg = g.players.reduce((s, p) => s + p.wins, 0) / g.players.length;
+    weeks.push({ week: g.week, wins: me.wins, losses: me.losses, left: me.left, rank, n: g.players.length, avg, leader: sorted[0].wins });
+    g.players.forEach(p => {
+      if (p.name === ME) return;
+      const h = h2h[p.name] || (h2h[p.name] = { w: 0, l: 0, same: 0 });
+      me.picks.forEach(mp => {
+        if (!mp.team || !mp.final) return;
+        const theirs = p.picks.find(tp => tp.team === mp.team || tp.team === mp.opp);
+        if (!theirs || !theirs.final) return;
+        if (theirs.team === mp.team) h.same++;
+        else if (mp.winning) h.w++; else if (theirs.winning) h.l++;
+      });
+    });
+  });
+
+  const main = document.getElementById('main');
+  document.getElementById('strip').innerHTML = '';
+  document.getElementById('warnings').innerHTML = '';
+  if (!picks.length) { main.innerHTML = `<div class="sec"><h2>${esc(ME)}</h2><div class="pad">No picks found for ${esc(ME)}. The name is set in build_tracker.py.</div></div>`; return; }
+
+  const total = rec(picks);
+  // Season rank across all players
+  const season = {};
+  graded.forEach(g => g.players.forEach(p => { const t = season[p.name] || (season[p.name] = { name: p.name, w: 0, l: 0 }); t.w += p.wins; t.l += p.losses; }));
+  const table = Object.values(season).sort((a, b) => b.w - a.w || a.l - b.l);
+  const myRank = table.findIndex(t => t.name === ME) + 1;
+  const back = table[0].w - total.w;
+
+  const favs = picks.filter(p => p.isFav), dogs = picks.filter(p => !p.isFav);
+  const home = picks.filter(p => p.isHome === true), away = picks.filter(p => p.isHome === false);
+  const withCrowd = picks.filter(p => p.same > p.other), against = picks.filter(p => p.same < p.other), split = picks.filter(p => p.same === p.other);
+  const solo = picks.filter(p => p.same === 0 && p.other > 0);
+  const small = picks.filter(p => p.spread < 3), mid = picks.filter(p => p.spread >= 3 && p.spread < 7), big = picks.filter(p => p.spread >= 7);
+  const finals = picks.filter(p => p.final);
+  const closest = finals.slice().sort((a, b) => Math.abs(a.margin) - Math.abs(b.margin)).slice(0, 6);
+  const luckyWins = finals.filter(p => p.winning && p.margin <= 3).length;
+  const badBeats = finals.filter(p => !p.winning && p.margin >= -3).length;
+  const lonely = finals.filter(p => p.same === 0 && p.other > 0);
+
+  // team counts
+  const byTeam = {};
+  picks.forEach(p => { const t = byTeam[p.team] || (byTeam[p.team] = []); t.push(p); });
+  const teams = Object.entries(byTeam).sort((a, b) => b[1].length - a[1].length || a[0].localeCompare(b[0]));
+
+  // insights
+  const ins = [];
+  const favShare = Math.round(100 * favs.length / picks.length);
+  ins.push(favShare >= 60 ? `You lean chalk: ${favShare}% of your picks are favorites (${recStr(rec(favs))} so far). Underdogs: ${recStr(rec(dogs))}.`
+         : favShare <= 40 ? `You like underdogs: ${100 - favShare}% of your picks are dogs (${recStr(rec(dogs))}). Favorites: ${recStr(rec(favs))}.`
+         : `You split favorites and underdogs about evenly. Favorites ${recStr(rec(favs))}, underdogs ${recStr(rec(dogs))}.`);
+  if (rec(against).n || rec(withCrowd).n)
+    ins.push(`With the crowd you're ${recStr(rec(withCrowd))}; going against it you're ${recStr(rec(against))}.` +
+      (rec(against).n && rec(withCrowd).n && rec(against).w / rec(against).n > rec(withCrowd).w / rec(withCrowd).n ? ' Your contrarian calls are your best ones.' : ''));
+  if (lonely.length) ins.push(`${plural(lonely.length, 'pick')} where nobody else in the pool agreed with you: ${lonely.map(p => `${p.team} ${p.line} (${p.winning ? 'won' : 'lost'})`).join(', ')}.`);
+  if (badBeats || luckyWins) ins.push(`Decided by 3 points or less against the number: ${plural(luckyWins, 'win')}, ${plural(badBeats, 'loss')}.` +
+    (badBeats > luckyWins ? ' The close ones have gone against you.' : luckyWins > badBeats ? ' The close ones have gone your way.' : ''));
+  const bestW = weeks.slice().sort((a, b) => b.wins - a.wins)[0], worstW = weeks.slice().sort((a, b) => a.wins - b.wins)[0];
+  if (weeks.length > 1) ins.push(`Best week: Week ${bestW.week} (${bestW.wins}-${bestW.losses}). Worst: Week ${worstW.week} (${worstW.wins}-${worstW.losses}).`);
+  const homeR = rec(home), awayR = rec(away);
+  if (homeR.n && awayR.n) ins.push(`Home teams ${recStr(homeR)}, road teams ${recStr(awayR)}.`);
+  const bigR = rec(big);
+  if (bigR.n) ins.push(`On spreads of 7 or more you're ${recStr(bigR)}.`);
+  const rival = Object.entries(h2h).filter(([, h]) => h.w + h.l).sort((a, b) => (b[1].w - b[1].l) - (a[1].w - a[1].l));
+  if (rival.length) {
+    const [bn, bh] = rival[0], [wn, wh] = rival[rival.length - 1];
+    if (bh.w > bh.l) ins.push(`When you and ${bn} take opposite sides, you're ${bh.w}-${bh.l}.`);
+    if (wh.l > wh.w && wn !== bn) ins.push(`${wn} has your number: you're ${wh.w}-${wh.l} when you disagree.`);
+  }
+
+  const tile = (label, list) => { const r = rec(list); return `<div class="tile"><div class="tl">${label}</div><div class="tv">${recStr(r)}</div><div class="ts">${plural(list.length, 'pick')}${r.n ? ' · ' + pct(r) : ''}</div></div>`; };
+
+  let html = `<div class="hero"><div>
+      <div class="hn">${esc(ME)}</div>
+      <div class="hs">${plural(weeks.length, 'week')} · ${plural(picks.length, 'pick')}</div></div>
+    <div class="hstat"><div class="hv">${recStr(total)}</div><div class="hl">Record</div></div>
+    <div class="hstat"><div class="hv">${pct(total) || '—'}</div><div class="hl">Win pct</div></div>
+    <div class="hstat"><div class="hv">#${myRank}<span class="of">/${table.length}</span></div><div class="hl">${back === 0 ? 'Leading' : plural(back, 'win') + ' back'}</div></div>
+    ${bank && bank.ledger[ME] ? `<div class="hstat"><div class="hv">${usd(bank.ledger[ME].won - bank.ledger[ME].paid)}</div><div class="hl">Net · won ${usd(bank.ledger[ME].won)}</div></div>` : ''}
+  </div>`;
+
+  html += `<div class="sec"><h2>Insights</h2><ul class="ins">${ins.map(i => `<li>${esc(i)}</li>`).join('')}</ul></div>`;
+
+  html += `<div class="sec"><h2>Tendencies</h2><div class="tiles">
+    ${tile('Favorites', favs)}
+    ${tile('Underdogs', dogs)}
+    ${tile('Home teams', home)}
+    ${tile('Road teams', away)}
+    ${tile('With the crowd', withCrowd)}
+    ${tile('Against the crowd', against)}
+    ${tile('Nobody else agreed', solo)}
+    ${tile('Spread under 3', small)}
+    ${tile('Spread 3 to 6.5', mid)}
+    ${tile('Spread 7+', big)}
+  </div></div>`;
+
+  html += `<div class="two">`;
+  html += `<div class="sec"><h2>Week by week</h2><div class="scroll"><table><thead><tr><th>Week</th><th class="num">Record</th><th class="num">Rank</th><th class="num">Pool avg</th><th class="num">Leader</th></tr></thead><tbody>`;
+  weeks.forEach(w => html += `<tr><td class="name">Week ${w.week}${w.left ? ` <span class="muted">(${w.left} left)</span>` : ''}</td><td class="num big">${w.wins}-${w.losses}</td><td class="num">${w.rank} of ${w.n}</td><td class="num">${w.avg.toFixed(1)}</td><td class="num">${w.leader}</td></tr>`);
+  html += `</tbody></table></div></div>`;
+
+  html += `<div class="sec"><h2>Closest calls<small>margin vs the spread</small></h2><div class="scroll"><table><tbody>`;
+  closest.forEach(p => html += `<tr><td class="muted">Wk ${p.week}</td><td class="name">${logo(p.team)} ${p.team} ${p.line}</td><td class="muted">${p.my}-${p.theirs} vs ${p.opp}</td>
+    <td class="num"><span class="chip ${p.winning ? 'win' : 'loss'}">${p.push ? 'push' : (p.winning ? 'won by ' : 'lost by ') + Math.abs(p.margin)}</span></td></tr>`);
+  html += `</tbody></table></div></div></div>`;
+
+  html += `<div class="two">`;
+  html += `<div class="sec"><h2>Head to head<small>games where you took the other side</small></h2><div class="scroll"><table><thead><tr><th>Player</th><th class="num">You</th><th class="num">Them</th><th class="num">Agreed</th></tr></thead><tbody>`;
+  Object.entries(h2h).sort((a, b) => (b[1].w - b[1].l) - (a[1].w - a[1].l) || a[0].localeCompare(b[0]))
+    .forEach(([n, h]) => html += `<tr><td class="name">${esc(n)}</td><td class="num ${h.w > h.l ? 'good' : ''}">${h.w}</td><td class="num ${h.l > h.w ? 'bad' : ''}">${h.l}</td><td class="num muted">${h.same}</td></tr>`);
+  html += `</tbody></table></div></div>`;
+
+  html += `<div class="sec"><h2>Your teams</h2><div class="scroll"><table><thead><tr><th>Team</th><th class="num">Picked</th><th class="num">Record</th></tr></thead><tbody>`;
+  teams.forEach(([t, list]) => html += `<tr><td class="name">${logo(t)} ${t} ${TEAMS[t]}</td><td class="num">${list.length}</td><td class="num">${recStr(rec(list))}</td></tr>`);
+  html += `</tbody></table></div></div></div>`;
+
+  main.innerHTML = html;
+  document.getElementById('built').textContent = `Stats use finished games only. "Crowd" compares your side with what the rest of the pool picked on the same game.`;
+}
+
+render();
+refreshAll();
+setInterval(refreshAll, 60 * 1000);
+</script>
+</body>
+</html>
